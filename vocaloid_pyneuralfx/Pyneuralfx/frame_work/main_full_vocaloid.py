@@ -66,6 +66,95 @@ for func in loss_funcs:
 # ============================================================ #
 from torch.nn.utils.rnn import pad_sequence
 
+import os
+import shutil
+import random
+
+import os
+import shutil
+import random
+
+def shuffle_and_distribute_paired_files(train_path, valid_path, test_path, ratio=(0.7, 0.15, 0.15)):
+    # Ensure the ratio sums to 1
+    assert sum(ratio) == 1.0, "Ratio values must sum to 1."
+
+    parent_dir = os.path.dirname(train_path)  # Get the common parent directory
+
+    # Collect all unique file names (assuming both x/ and y/ have the same file names)
+    all_files = set()
+    for base_path in [train_path, valid_path, test_path]:
+        x_path = os.path.join(base_path, "x")
+        if os.path.exists(x_path):
+            all_files.update(os.listdir(x_path))  # Collect file names from x/
+
+    all_files = list(all_files)
+    random.shuffle(all_files)  # Shuffle file names
+
+    # Compute split indices based on ratio
+    total_files = len(all_files)
+    train_split = int(ratio[0] * total_files)
+    valid_split = train_split + int(ratio[1] * total_files)
+
+    # Temporary directories to store shuffled data before moving them back
+    temp_train_x = os.path.join(parent_dir, "temp_train_x")
+    temp_train_y = os.path.join(parent_dir, "temp_train_y")
+    temp_valid_x = os.path.join(parent_dir, "temp_valid_x")
+    temp_valid_y = os.path.join(parent_dir, "temp_valid_y")
+    temp_test_x = os.path.join(parent_dir, "temp_test_x")
+    temp_test_y = os.path.join(parent_dir, "temp_test_y")
+
+    os.makedirs(temp_train_x, exist_ok=True)
+    os.makedirs(temp_train_y, exist_ok=True)
+    os.makedirs(temp_valid_x, exist_ok=True)
+    os.makedirs(temp_valid_y, exist_ok=True)
+    os.makedirs(temp_test_x, exist_ok=True)
+    os.makedirs(temp_test_y, exist_ok=True)
+
+    # Move files to temporary shuffled directories
+    for idx, file_name in enumerate(all_files):
+        if idx < train_split:
+            dest_x, dest_y = temp_train_x, temp_train_y
+        elif idx < valid_split:
+            dest_x, dest_y = temp_valid_x, temp_valid_y
+        else:
+            dest_x, dest_y = temp_test_x, temp_test_y
+
+        # Move files from the original directories to the temporary directories
+        for base_path in [train_path, valid_path, test_path]:
+            src_x = os.path.join(base_path, "x", file_name)
+            src_y = os.path.join(base_path, "y", file_name)
+
+            if os.path.exists(src_x):
+                shutil.move(src_x, os.path.join(dest_x, file_name))
+            if os.path.exists(src_y):
+                shutil.move(src_y, os.path.join(dest_y, file_name))
+
+    # Clear original directories before moving files back
+    for base_path in [train_path, valid_path, test_path]:
+        shutil.rmtree(os.path.join(base_path, "x"), ignore_errors=True)
+        shutil.rmtree(os.path.join(base_path, "y"), ignore_errors=True)
+        os.makedirs(os.path.join(base_path, "x"), exist_ok=True)
+        os.makedirs(os.path.join(base_path, "y"), exist_ok=True)
+
+    # Move shuffled files back to original directories
+    for temp_dir, target_dir in [
+        (temp_train_x, os.path.join(train_path, "x")),
+        (temp_train_y, os.path.join(train_path, "y")),
+        (temp_valid_x, os.path.join(valid_path, "x")),
+        (temp_valid_y, os.path.join(valid_path, "y")),
+        (temp_test_x, os.path.join(test_path, "x")),
+        (temp_test_y, os.path.join(test_path, "y")),
+    ]:
+        for file_name in os.listdir(temp_dir):
+            shutil.move(os.path.join(temp_dir, file_name), os.path.join(target_dir, file_name))
+
+        shutil.rmtree(temp_dir)  # Remove temporary directory
+
+    print(f"Shuffled and distributed {total_files} file pairs:")
+    print(f"- Train: {train_split} files ({ratio[0] * 100:.1f}%)")
+    print(f"- Valid: {valid_split - train_split} files ({ratio[1] * 100:.1f}%)")
+    print(f"- Test: {total_files - valid_split} files ({ratio[2] * 100:.1f}%)")
+
 def collate_fn(batch):
     wav_x_s = []
     wav_y_s = []
@@ -213,6 +302,8 @@ def train():
 # Main  
 # ============================================================ #
 utils.check_configs(args)
+# Example usage
+shuffle_and_distribute_paired_files(args.data.train_path, args.data.valid_path, args.data.test_path, ratio=(0.8, 0.1, 0.1))  # Adjust ratio as needed
 train()
 inference(args.data.test_path, 'valid_gen', args.env.expdir)
 

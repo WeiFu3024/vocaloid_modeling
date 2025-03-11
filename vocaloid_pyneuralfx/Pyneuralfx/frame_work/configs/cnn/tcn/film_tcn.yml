@@ -5,9 +5,9 @@ data:
   out_channels: 1
   num_conds: 6
   norm_tensor: [[0, 1], [0, 1], [-1, 1], [-1, 1], [-1, 1], [-1, 1]]
-  train_path: ../../../data/audio_test/
-  valid_path: ../../../data/audio_test/
-  test_path: ../../../data/audio_test/
+  train_path: ../../../data/audio/audio_train/
+  valid_path: ../../../data/audio/audio_valid/
+  test_path: ../../../data/audio/audio_test/
 model:
   arch: film-tcn
   n_blocks: 5
