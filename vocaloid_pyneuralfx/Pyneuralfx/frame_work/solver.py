@@ -15,7 +15,6 @@ warnings.filterwarnings("ignore")
 import utils
 import saver
 
-
 # ============================================================ #
 # Train Non-Linear 
 # ============================================================ #
@@ -66,7 +65,8 @@ def validate(
         data_set,
         loss_func, 
         path_save=None,
-        write_sr=None):
+        write_sr=None,
+        concat=False):
     
     # eval mode
     model.eval()
@@ -141,20 +141,27 @@ def validate(
                 results_inp.append(
                     utils.convert_tensor_to_numpy(wav_x, is_squeeze=True)[args.model.pre_room:]
                 )
-
-                new_fn_name = f'output{bidx}'
-                if len(condfn) != 0:
-                    for i in range(args.data.num_conds):
-                        new_fn_name += f'_{condfn[i]:.1f}'
-                new_fn_name = new_fn_name + '.wav'
-                
+                # print((results_inp[-1].shape[0])/args.data.buffer_size)
+                # print(condfn[-1])
+                if not concat:
+                    new_fn_name = f'output{bidx}'
+                    if len(condfn[-1]) != 0:
+                        for i in range(args.data.num_conds):
+                            new_fn_name += f'_{condfn[-1][i]:.1f}'
+                    new_fn_name = new_fn_name + '.wav'
+                if concat:
+                    new_fn_name = f'output'
+                    if len(condfn[-1]) != 0:
+                        for i in range(args.data.num_conds):
+                            new_fn_name += f'_{condfn[-1][i]:.1f}'
+                    new_fn_name = new_fn_name + '.wav'
                 fn_list.append(
                     new_fn_name
                 )
             # append loss
             list_loss.append(loss.item())
             
-    if path_save:
+    if path_save and not concat:
         print('mean loss:', np.mean(list_loss))
         os.makedirs(path_save, exist_ok=True) 
 
@@ -198,6 +205,59 @@ def validate(
             sf.write(path_outfile_pred, sample_pred, write_sr, subtype='PCM_24')
             sf.write(path_outfile_anno, sample_anno, write_sr, subtype='PCM_24')
             sf.write(path_outfile_inp,  sample_inp,  write_sr, subtype='PCM_24')
+
+    if path_save and concat:
+        print('mean loss:', np.mean(list_loss))
+        os.makedirs(path_save, exist_ok=True) 
+
+        # save pred
+        path_outdir_pred = os.path.join(path_save, 'pred')
+        path_outdir_anno = os.path.join(path_save, 'anno')
+        path_outdir_inp  = os.path.join(path_save, 'inp')
+
+        os.makedirs(path_outdir_pred, exist_ok=True)
+        os.makedirs(path_outdir_anno, exist_ok=True)
+        os.makedirs(path_outdir_inp,  exist_ok=True)
+
+        general_fn = fn_list[0]
+
+        path_outfile_pred = os.path.join(path_outdir_pred, general_fn)
+        path_outfile_anno = os.path.join(path_outdir_anno, general_fn)
+        path_outfile_inp = os.path.join(path_outdir_inp,  general_fn)
+
+        print(' > path_outfile pred:', path_outfile_pred)
+        print(' > path_outfile anno:', path_outfile_anno)
+        print(' > path_outfile inp:' , path_outfile_inp)
+
+        sample_pred = np.array([])
+        sample_anno = np.array([])
+        sample_inp  = np.array([])
+
+        print('---------------------------------')
+
+        for idx, fn in enumerate(fn_list):
+            
+            assert general_fn == fn
+
+            sample_pred = np.concatenate((sample_pred, results_pred[idx]), axis=0)
+            sample_anno = np.concatenate((sample_anno, results_anno[idx]), axis=0)
+            sample_inp = np.concatenate((sample_inp, results_inp[idx]), axis=0)
+
+        if args.data.out_channels > 1:
+            sample_pred = np.transpose(sample_pred, (1, 0))
+            sample_anno = np.transpose(sample_anno, (1, 0))
+            sample_inp  = np.transpose(sample_inp,  (1, 0))
+
+        print(' > sample shape:', sample_pred.shape)
+        print(' > sample shape:', sample_anno.shape)
+        print(' > sample shape:', sample_inp.shape)
+        
+        if write_sr is None:
+            write_sr = args.data.sampling_rate 
+        
+        sf.write(path_outfile_pred, sample_pred, write_sr, subtype='PCM_24')
+        sf.write(path_outfile_anno, sample_anno, write_sr, subtype='PCM_24')
+        sf.write(path_outfile_inp,  sample_inp,  write_sr, subtype='PCM_24')
         
     return np.mean(list_loss)
 

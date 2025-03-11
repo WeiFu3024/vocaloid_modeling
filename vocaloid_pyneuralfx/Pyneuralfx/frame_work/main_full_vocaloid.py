@@ -9,7 +9,7 @@ from shutil import copyfile
 
 import solver 
 import utils
-from dataset_vocaloid import Full_Modeling_Vocaloid_AudioDataset
+from dataset_vocaloid import Full_Modeling_Vocaloid_AudioDataset, Inference_Vocaloid_AudioDataset
 
 # ============================================================ #
 # Config 
@@ -64,6 +64,8 @@ for func in loss_funcs:
 # ============================================================ #
 # Functions
 # ============================================================ #
+from torch.nn.utils.rnn import pad_sequence
+
 def collate_fn(batch):
     wav_x_s = []
     wav_y_s = []
@@ -81,6 +83,8 @@ def collate_fn(batch):
 
     return torch.from_numpy(x_final), torch.from_numpy(y_final), torch.from_numpy(c_final)
 
+
+
 def inference(path_to_dataset, path_savedir, exp_dir_val):
     global model
     print(' >>>>> inference')
@@ -93,33 +97,42 @@ def inference(path_to_dataset, path_savedir, exp_dir_val):
                 device=args.device, 
                 name='best_params.pt')
     
-    # data
-    valid_set = Full_Modeling_Vocaloid_AudioDataset(
-        path_to_dataset, 
-        pre_room=PRE_ROOM,
-        win_len=None,
-        norm_tensor=args.data.norm_tensor,
-        sr=args.data.sampling_rate,
-        cond_size=args.data.num_conds)
+    path_to_x = os.path.join(path_to_dataset, 'x')
+    path_to_y = os.path.join(path_to_dataset, 'y')
 
-    loader_valid = torch.utils.data.DataLoader(
-        valid_set,
-        batch_size=args.inference.batch_size,
-        shuffle=False,
-        num_workers=2,
-        pin_memory=True,
-        collate_fn=collate_fn
-    )
-
-    # validate
-    path_outdir = os.path.join(exp_dir_val, path_savedir) 
-    solver.validate(  
-        args, 
-        model, 
-        loader_valid,
-        loss_func_val, 
-        path_save=path_outdir)
+    filelist_x = os.listdir(path_to_x)
+    filelist_y = os.listdir(path_to_y)
     
+    # data
+    for (fn_x, fn_y) in zip(filelist_x, filelist_y):
+        valid_set = Inference_Vocaloid_AudioDataset(
+            os.path.join(path_to_x, fn_x),
+            os.path.join(path_to_y, fn_y),
+            pre_room=PRE_ROOM,
+            win_len=args.data.buffer_size,
+            norm_tensor=args.data.norm_tensor,
+            sr=args.data.sampling_rate,
+            cond_size=args.data.num_conds)
+
+        loader_valid = torch.utils.data.DataLoader(
+            valid_set,
+            batch_size=args.inference.batch_size,
+            shuffle=False,
+            num_workers=2,
+            pin_memory=True,
+            collate_fn=collate_fn
+        )
+
+        # validate
+        path_outdir = os.path.join(exp_dir_val, path_savedir) 
+        solver.validate(  
+            args, 
+            model, 
+            loader_valid,
+            loss_func_val, 
+            path_save=path_outdir,
+            concat=True)
+        
     amount, amount_train = model.compute_num_of_params()
     print(' > params amount: {:,d} | trainable: {:,d}'.format(amount, amount_train))
 

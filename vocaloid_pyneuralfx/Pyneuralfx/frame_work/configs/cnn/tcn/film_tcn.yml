@@ -10,12 +10,12 @@ data:
   test_path: ../../../data/audio_test/
 model:
   arch: film-tcn
-  n_blocks: 7
+  n_blocks: 5
   kernel_size: 3
   dilation_growth: 2
   n_channels: 8
   causal: True 
-  pre_film_size: 16
+  pre_film_size: 8
   pre_film_blocks: 3 
 loss:
   loss_func: hybrid_loss
@@ -28,9 +28,9 @@ env:
   is_jit: False
   debug_mode: True
 inference:
-  batch_size: 1
+  batch_size: 100
 train:
-  batch_size: 80
+  batch_size: 320
   epochs: 1
   interval_log: 10
   interval_ckpt: 1500
