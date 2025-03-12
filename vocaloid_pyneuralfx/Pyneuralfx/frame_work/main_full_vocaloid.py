@@ -186,6 +186,9 @@ def inference(path_to_dataset, path_savedir, exp_dir_val):
                 device=args.device, 
                 name='best_params.pt')
     
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model.to(device)
+    
     path_to_x = os.path.join(path_to_dataset, 'x')
     path_to_y = os.path.join(path_to_dataset, 'y')
 
@@ -227,6 +230,9 @@ def inference(path_to_dataset, path_savedir, exp_dir_val):
 
 def train():
     global model
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model.to(device)
 
     if LOAD_DIR:
         print(' >>>>> fine-tuning')
