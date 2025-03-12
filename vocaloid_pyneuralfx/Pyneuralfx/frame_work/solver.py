@@ -287,6 +287,10 @@ def train(
     saver_agent.log_info(log_amount)
 
     # training config
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model.to(device)
+
     model.train()
     is_valid = True if valid_set is not None else False
     num_batch = len(data_set) 
@@ -357,6 +361,11 @@ def train(
 
                 # compute loss
                 
+
+                # Ensure the model is on the correct device (GPU if available)
+                device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+                model.to(device)
+
                 loss_valid = validate(
                     args, 
                     model, 
