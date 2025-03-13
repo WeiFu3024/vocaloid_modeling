@@ -83,7 +83,7 @@ class Full_Modeling_Vocaloid_AudioDataset(torch.utils.data.Dataset):
             # checking same condition 
             assert len(raw_conds) == len(valid_check_conds)
             for i in range(1, len(raw_conds)):
-                assert raw_conds[i] == valid_check_conds[i]
+                assert raw_conds[i] == valid_check_conds[i], f'expect {raw_conds[i]}, get {valid_check_conds[i]} instead, in {fn_x} and {fn_y}'
             
             # extract condition value 
             __conds_candidates = []
