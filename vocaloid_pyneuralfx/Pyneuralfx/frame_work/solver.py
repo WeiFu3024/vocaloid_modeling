@@ -68,6 +68,9 @@ def validate(
         write_sr=None,
         concat=False):
     
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model.to(device)
+
     # eval mode
     model.eval()
     # init
